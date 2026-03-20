@@ -21,13 +21,20 @@ const PCT_SOUTH_TERMINUS = [32.5899, -116.4758];
 // PCT northern terminus (Manning Park, BC) approximate coords
 const PCT_NORTH_TERMINUS = [49.0006, -120.8027];
 
-// ============================================================
-// Placeholder data shown when sheet URL is not yet configured
-// ============================================================
-const PLACEHOLDER_LOCATIONS = [
-  { timestamp: '2026-04-01T10:00:00', lat: 32.5899, lon: -116.4758, message: 'Starting the PCT at Campo! Here we go!' },
-  { timestamp: '2026-04-05T14:30:00', lat: 32.7500, lon: -116.5200, message: 'Making good miles. Feet are sore but spirits high.' },
-  { timestamp: '2026-04-10T09:15:00', lat: 33.1000, lon: -116.7100, message: 'Warner Springs done. Water was plentiful.' },
+// localStorage cache keys
+const CACHE_KEY = 'pct_locations_v1';
+const CACHE_TS_KEY = 'pct_locations_ts_v1';
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
+
+// PCT milestones for progress bar tooltips
+const PCT_MILESTONES = [
+  { label: 'Campo',        mile: 0,    emoji: '🚀' },
+  { label: 'Kennedy Mdws', mile: 702,  emoji: '⛺' },
+  { label: 'Yosemite',     mile: 942,  emoji: '🏔️' },
+  { label: 'OR Border',    mile: 1702, emoji: '🌲' },
+  { label: 'Crater Lake',  mile: 1820, emoji: '🌋' },
+  { label: 'WA Border',    mile: 1977, emoji: '🦅' },
+  { label: 'Manning Park', mile: 2653, emoji: '🏁' },
 ];
 
 // ============================================================
@@ -54,7 +61,6 @@ const baseLayers = {
 };
 baseLayers['Satellite'].addTo(map);
 
-// Layer groups
 const trailLayer = L.layerGroup().addTo(map);
 const historyLayer = L.layerGroup().addTo(map);
 const markerLayer = L.layerGroup().addTo(map);
@@ -66,15 +72,48 @@ L.control.layers(baseLayers, {
 }).addTo(map);
 
 // ============================================================
+// Animated counter — eases from `from` to `to` over ~600ms
+// ============================================================
+function animateCounter(el, from, to) {
+  const duration = 600;
+  const startTime = performance.now();
+  el.classList.add('updating');
+
+  function step(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    // Cubic ease-out
+    const eased = 1 - Math.pow(1 - t, 3);
+    const value = Math.round(from + (to - from) * eased);
+    el.textContent = value.toLocaleString();
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.textContent = to.toLocaleString();
+      el.classList.remove('updating');
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+// ============================================================
+// Update progress bar fill + current dot position
+// ============================================================
+function updateProgressBar(milesHiked) {
+  const pct = Math.min((milesHiked / PCT_TOTAL_MILES) * 100, 100);
+  const fill = document.getElementById('progress-fill');
+  const dot = document.getElementById('current-dot-wrap');
+  if (fill) fill.style.width = `${pct}%`;
+  if (dot) dot.style.left = `${pct}%`;
+}
+
+// ============================================================
 // Parse Google Sheets CSV response
-// Expects columns: timestamp, lat, lon, message
-// Skips the header row.
 // ============================================================
 function parseSheetResponse(text) {
   const lines = text.trim().split('\n');
-  // Skip header row
   return lines.slice(1).map(line => {
-    // Simple CSV split — handles quoted fields containing commas
     const cols = parseCsvLine(line);
     const lat = parseFloat(cols[1]);
     const lon = parseFloat(cols[2]);
@@ -110,22 +149,63 @@ function parseCsvLine(line) {
 
 // ============================================================
 // Fetch location history from Google Sheets (CSV)
+// Falls back to localStorage cache if fetch fails.
 // ============================================================
 async function fetchLocations() {
-  const resp = await fetch(SHEET_JSON_URL);
-  if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
-  const text = await resp.text();
-  if (text.trimStart().startsWith('<')) {
-    throw new Error('Sheet returned HTML instead of CSV — verify it is published: File → Share → Publish to web → CSV');
+  try {
+    const resp = await fetch(SHEET_JSON_URL);
+    if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
+    const text = await resp.text();
+    if (text.trimStart().startsWith('<')) {
+      throw new Error('Sheet returned HTML instead of CSV — verify it is published: File → Share → Publish to web → CSV');
+    }
+    const locations = parseSheetResponse(text);
+    // Cache the result
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(locations));
+      localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+    } catch {
+      // localStorage may be full or unavailable — non-fatal
+    }
+    return locations;
+  } catch (err) {
+    // Try cache fallback
+    const cached = loadCachedLocations();
+    if (cached) {
+      console.info('Using cached location data due to fetch error:', err.message);
+      return cached;
+    }
+    throw err;
   }
-  return parseSheetResponse(text);
+}
+
+function loadCachedLocations() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function loadCachedLocationsIfFresh() {
+  try {
+    const ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || '0', 10);
+    if (Date.now() - ts > CACHE_TTL_MS) return null;
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 // ============================================================
 // Haversine distance (miles) between two [lat, lon] points
 // ============================================================
 function haversineMiles([lat1, lon1], [lat2, lon2]) {
-  const R = 3958.8; // Earth radius in miles
+  const R = 3958.8;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
@@ -135,9 +215,6 @@ function haversineMiles([lat1, lon1], [lat2, lon2]) {
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
-// ============================================================
-// Compute cumulative trail distance from a list of coords
-// ============================================================
 function cumulativeDistance(coords) {
   let total = 0;
   for (let i = 1; i < coords.length; i++) {
@@ -152,28 +229,23 @@ function cumulativeDistance(coords) {
 function calcStats(locations) {
   if (!locations.length) return null;
 
-  // Sort by timestamp ascending
   const sorted = [...locations].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   const latest = sorted[sorted.length - 1];
 
-  // Miles hiked = cumulative straight-line distance (approximation without PCT GeoJSON)
   const coords = sorted.map(l => [l.lat, l.lon]);
   const milesHiked = cumulativeDistance([[PCT_SOUTH_TERMINUS[0], PCT_SOUTH_TERMINUS[1]], ...coords]);
-
-  // % complete
   const pctComplete = ((milesHiked / PCT_TOTAL_MILES) * 100).toFixed(1);
 
-  // Days on trail
   const startDate = new Date(TRAIL_START_DATE);
   const lastDate = new Date(latest.timestamp);
   const daysOnTrail = Math.max(0, Math.floor((lastDate - startDate) / (1000 * 60 * 60 * 24)));
 
-  // Last update — human readable
-  const lastUpdate = formatRelativeTime(lastDate);
-
-  return { milesHiked: Math.round(milesHiked), pctComplete, daysOnTrail, lastUpdate, latest, sorted };
+  return { milesHiked: Math.round(milesHiked), pctComplete, daysOnTrail, latestTimestamp: lastDate, latest, sorted };
 }
 
+// ============================================================
+// Relative time formatting
+// ============================================================
 function formatRelativeTime(date) {
   const now = new Date();
   const diffMs = now - date;
@@ -187,17 +259,47 @@ function formatRelativeTime(date) {
 }
 
 // ============================================================
-// Update stats panel
+// Update stats panel + animated counter + progress bar
 // ============================================================
+let prevMilesHiked = 0;
+let currentLatestTimestamp = null;
+
 function updateStatsPanel(stats) {
-  document.getElementById('miles-hiked').textContent = stats.milesHiked.toLocaleString();
-  document.getElementById('pct-percent').textContent = `${stats.pctComplete}%`;
-  document.getElementById('days-on-trail').textContent = stats.daysOnTrail;
-  document.getElementById('last-update').textContent = stats.lastUpdate;
+  const milesEl = document.getElementById('miles-hiked');
+  const currentDisplay = parseInt((milesEl.textContent || '0').replace(/,/g, ''), 10) || 0;
+
+  animateCounter(milesEl, currentDisplay, stats.milesHiked);
+  updateProgressBar(stats.milesHiked);
+
+  const milesOfTotal = document.getElementById('miles-of-total');
+  if (milesOfTotal) milesOfTotal.textContent = `${stats.milesHiked.toLocaleString()} of ${PCT_TOTAL_MILES.toLocaleString()} miles`;
+
+  const pctEl = document.getElementById('pct-percent');
+  if (pctEl) pctEl.textContent = `${stats.pctComplete}%`;
+
+  const pctStatEl = document.getElementById('pct-percent-stat');
+  if (pctStatEl) pctStatEl.textContent = `${stats.pctComplete}%`;
+
+  const daysEl = document.getElementById('days-on-trail');
+  if (daysEl) daysEl.textContent = stats.daysOnTrail;
+
+  const lastUpdateEl = document.getElementById('last-update');
+  if (lastUpdateEl) lastUpdateEl.textContent = formatRelativeTime(stats.latestTimestamp);
 
   const msg = stats.latest.message || '(no message)';
-  document.getElementById('latest-message').textContent = `"${msg}"`;
+  const msgEl = document.getElementById('latest-message');
+  if (msgEl) msgEl.textContent = `"${msg}"`;
+
+  currentLatestTimestamp = stats.latestTimestamp;
+  prevMilesHiked = stats.milesHiked;
 }
+
+// Live-ticking timestamp — updates "Last GPS update" every 60s
+setInterval(() => {
+  if (!currentLatestTimestamp) return;
+  const el = document.getElementById('last-update');
+  if (el) el.textContent = formatRelativeTime(currentLatestTimestamp);
+}, 60 * 1000);
 
 // ============================================================
 // Render map layers
@@ -209,7 +311,6 @@ function renderMap(stats) {
   const { sorted, latest } = stats;
   const coords = sorted.map(l => [l.lat, l.lon]);
 
-  // Draw breadcrumb trail polyline
   if (coords.length > 1) {
     L.polyline(coords, {
       color: '#e94560',
@@ -219,7 +320,6 @@ function renderMap(stats) {
     }).addTo(historyLayer);
   }
 
-  // Historical location dots
   sorted.slice(0, -1).forEach(loc => {
     L.circleMarker([loc.lat, loc.lon], {
       radius: 5,
@@ -236,7 +336,6 @@ function renderMap(stats) {
       .addTo(historyLayer);
   });
 
-  // Current location: animated pulse marker
   const pulseIcon = L.divIcon({
     className: '',
     html: '<div class="pulse-marker"></div>',
@@ -254,7 +353,6 @@ function renderMap(stats) {
     .addTo(markerLayer)
     .openPopup();
 
-  // Fit map to show all points
   if (coords.length === 1) {
     map.setView(coords[0], 10);
   } else {
@@ -274,26 +372,19 @@ function formatTimestamp(ts) {
 }
 
 // ============================================================
-// PCT route overlay (loaded from public GeoJSON)
-// Only attempted if the browser can reach GitHub raw content.
+// PCT route overlay — loads from local asset for fast rendering
 // ============================================================
 async function loadPctRoute() {
-  const PCT_GEOJSON_URL =
-    'https://raw.githubusercontent.com/bwainstock/halfmile-geojson/master/tracks.geojson';
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const PCT_GEOJSON_URL = './pct_trail.geojson';
   try {
-    const resp = await fetch(PCT_GEOJSON_URL, { signal: controller.signal });
+    const resp = await fetch(PCT_GEOJSON_URL);
     if (!resp.ok) return;
     const geojson = await resp.json();
     L.geoJSON(geojson, {
-      style: { color: '#4a90d9', weight: 2, opacity: 0.5 },
+      style: { color: '#2fb8a0', weight: 3, opacity: 0.8 },
     }).addTo(trailLayer);
   } catch {
-    // Non-fatal: PCT route overlay is cosmetic enhancement only
-    console.info('PCT route GeoJSON not loaded (CORS, network, or timeout)');
-  } finally {
-    clearTimeout(timeout);
+    console.info('PCT route GeoJSON not loaded');
   }
 }
 
@@ -302,6 +393,7 @@ async function loadPctRoute() {
 // ============================================================
 async function update() {
   document.getElementById('status-text').textContent = 'Refreshing...';
+  document.getElementById('status-text').classList.remove('error-text');
   try {
     const locations = await fetchLocations();
     const stats = calcStats(locations);
@@ -345,7 +437,18 @@ function startCountdown() {
 // Boot
 // ============================================================
 (async () => {
-  // Load PCT route in background (non-blocking)
+  // Render cached data immediately so the UI isn't blank
+  const cachedLocations = loadCachedLocationsIfFresh();
+  if (cachedLocations) {
+    const cachedStats = calcStats(cachedLocations);
+    if (cachedStats) {
+      updateStatsPanel(cachedStats);
+      renderMap(cachedStats);
+      document.getElementById('status-text').textContent = 'Loading fresh data...';
+    }
+  }
+
+  // Load PCT trail route (local asset — fast)
   loadPctRoute();
 
   // Initial data load

@@ -11,32 +11,51 @@
   <div id="app">
     <header>
       <h1>PCT Hiker Tracker</h1>
-      <p id="hiker-name">Following the journey northbound ⛰️</p>
     </header>
 
-    <div id="stats-panel">
-      <div class="stat">
-        <span class="stat-value" id="miles-hiked">—</span>
-        <span class="stat-label">Miles Hiked</span>
+    <section class="mile-counter-section">
+      <div class="mile-counter-number" id="miles-hiked">—</div>
+      <div class="mile-counter-label">MILES HIKED</div>
+      <div class="mile-counter-sub">
+        <span id="miles-of-total">— of 2,653 miles</span>
+        &nbsp;·&nbsp;
+        <span class="teal" id="pct-percent">—%</span>
       </div>
-      <div class="stat">
-        <span class="stat-value" id="pct-percent">—</span>
-        <span class="stat-label">% Complete</span>
+      <div class="last-update-text">Last GPS update: <span id="last-update">—</span></div>
+    </section>
+
+    <section class="tracker-progress-section">
+      <div class="tracker-progress-bar" id="progress-bar-wrap">
+        <div class="seg-ca"></div>
+        <div class="seg-or"></div>
+        <div class="seg-wa"></div>
+        <div class="progress-fill" id="progress-fill"></div>
+        <div class="current-dot-wrap" id="current-dot-wrap">
+          <div class="current-dot"></div>
+        </div>
       </div>
+      <div class="progress-labels">
+        <span style="flex:1702">California</span>
+        <span style="flex:275">Oregon</span>
+        <span style="flex:676">Washington</span>
+      </div>
+    </section>
+
+    <div class="stats-strip">
       <div class="stat">
         <span class="stat-value" id="days-on-trail">—</span>
         <span class="stat-label">Days on Trail</span>
       </div>
       <div class="stat">
-        <span class="stat-value" id="last-update">—</span>
-        <span class="stat-label">Last Update</span>
+        <span class="stat-value teal" id="pct-percent-stat">—%</span>
+        <span class="stat-label">% Complete</span>
       </div>
     </div>
 
     <div id="map"></div>
 
     <div id="message-panel">
-      <h2>Latest Message</h2>
+      <span class="message-label">Latest Message</span>
       <p id="latest-message">Loading...</p>
     </div>
 

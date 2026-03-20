@@ -339,16 +339,17 @@ function renderMap(stats) {
   // Slice trail from start to the point nearest the hiker's current location.
   if (trailCoords) {
     const nearestIdx = findNearestTrailIndex(latest.lat, latest.lon);
-    // trailCoords is [lon, lat]; Leaflet needs [lat, lon]
-    const hikedLatLons = trailCoords.slice(0, nearestIdx + 1).map(c => [c[1], c[0]]);
-    if (hikedLatLons.length > 0) {
-      L.polyline(hikedLatLons, {
-        color: '#e94560',
-        weight: 3,
-        opacity: 0.85,
-        dashArray: '6, 4',
-      }).addTo(historyLayer);
-    }
+    // trailCoords is [lon, lat]; Leaflet needs [lat, lon].
+    // Always prepend PCT_SOUTH_TERMINUS (mile 0) so we have at least 2 points
+    // even when the hiker is at the very start of the trail (nearestIdx = 0).
+    const trailSegment = trailCoords.slice(0, nearestIdx + 1).map(c => [c[1], c[0]]);
+    const hikedLatLons = [PCT_SOUTH_TERMINUS, ...trailSegment];
+    L.polyline(hikedLatLons, {
+      color: '#e94560',
+      weight: 3,
+      opacity: 0.85,
+      dashArray: '6, 4',
+    }).addTo(historyLayer);
   } else {
     // Fallback before trail loads: straight line from Campo
     L.polyline([PCT_SOUTH_TERMINUS, ...coords], {

@@ -61,11 +61,18 @@ const baseLayers = {
 };
 baseLayers['Satellite'].addTo(map);
 
+// Boundaries + labels overlay (state/country lines on top of satellite)
+const boundariesLayer = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Boundaries &copy; Esri', maxZoom: 18, opacity: 1 }
+).addTo(map);
+
 const trailLayer = L.layerGroup().addTo(map);
 const historyLayer = L.layerGroup().addTo(map);
 const markerLayer = L.layerGroup().addTo(map);
 
 L.control.layers(baseLayers, {
+  'Boundaries & Labels': boundariesLayer,
   'PCT Trail': trailLayer,
   'History': historyLayer,
   'Current Location': markerLayer,
@@ -286,10 +293,6 @@ function updateStatsPanel(stats) {
   const lastUpdateEl = document.getElementById('last-update');
   if (lastUpdateEl) lastUpdateEl.textContent = formatRelativeTime(stats.latestTimestamp);
 
-  const msg = stats.latest.message || '(no message)';
-  const msgEl = document.getElementById('latest-message');
-  if (msgEl) msgEl.textContent = `"${msg}"`;
-
   currentLatestTimestamp = stats.latestTimestamp;
   prevMilesHiked = stats.milesHiked;
 }
@@ -311,15 +314,15 @@ function renderMap(stats) {
   const { sorted, latest } = stats;
   const coords = sorted.map(l => [l.lat, l.lon]);
 
-  if (coords.length > 1) {
-    L.polyline(coords, {
-      color: '#e94560',
-      weight: 3,
-      opacity: 0.7,
-      dashArray: '6, 4',
-    }).addTo(historyLayer);
-  }
+  // Breadcrumb line always starts from Campo (southern terminus), even with one GPS point
+  L.polyline([PCT_SOUTH_TERMINUS, ...coords], {
+    color: '#e94560',
+    weight: 3,
+    opacity: 0.7,
+    dashArray: '6, 4',
+  }).addTo(historyLayer);
 
+  // Historical check-in dots (all except the latest)
   sorted.slice(0, -1).forEach(loc => {
     L.circleMarker([loc.lat, loc.lon], {
       radius: 5,
@@ -329,10 +332,7 @@ function renderMap(stats) {
       opacity: 0.8,
       fillOpacity: 0.6,
     })
-      .bindPopup(`
-        <strong>${loc.message || 'Check-in'}</strong><br>
-        <span class="popup-time">${formatTimestamp(loc.timestamp)}</span>
-      `)
+      .bindPopup(`<span class="popup-time">${formatTimestamp(loc.timestamp)}</span>`)
       .addTo(historyLayer);
   });
 
@@ -347,17 +347,13 @@ function renderMap(stats) {
   L.marker([latest.lat, latest.lon], { icon: pulseIcon })
     .bindPopup(`
       <strong>Current Location</strong><br>
-      ${latest.message || 'Check-in'}<br>
       <span class="popup-time">${formatTimestamp(latest.timestamp)}</span>
     `)
     .addTo(markerLayer)
     .openPopup();
 
-  if (coords.length === 1) {
-    map.setView(coords[0], 10);
-  } else {
-    map.fitBounds(coords, { padding: [40, 40] });
-  }
+  // Fit bounds to show Campo through current location
+  map.fitBounds([PCT_SOUTH_TERMINUS, ...coords], { padding: [40, 40] });
 }
 
 function formatTimestamp(ts) {

@@ -223,30 +223,6 @@ header h1 {
   z-index: 1;
 }
 
-/* ── Message Panel ── */
-#message-panel {
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.4);
-  border-top: 1px solid var(--border);
-}
-
-.message-label {
-  display: block;
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--teal);
-  margin-bottom: 5px;
-}
-
-#latest-message {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.85);
-  font-style: italic;
-  line-height: 1.5;
-}
-
 /* ── Status Bar ── */
 #status-bar {
   display: flex;
@@ -351,11 +327,5 @@ header h1 {
     font-size: 2rem;
   }
 
-  #message-panel {
-    padding: 14px 40px;
-  }
 
-  #latest-message {
-    font-size: 1rem;
-  }
 }

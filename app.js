@@ -256,11 +256,11 @@ function calcStats(locations) {
   const coords = sorted.map(l => [l.lat, l.lon]);
 
   // Snap latest position to nearest trail point for accurate mileage.
-  // Each trail point in pct_trail.geojson is 0.5 PCT miles apart starting at mile 0.5,
-  // so index n → mile (n+1)*0.5. Fall back to straight-line haversine if trail not yet loaded.
+  // pct_trail.geojson has points at ~0.1 PCT mile intervals starting at ~mile 0.1,
+  // so index n → approx (n+1)*0.1 miles. Falls back to haversine before trail loads.
   const nearestIdx = findNearestTrailIndex(latest.lat, latest.lon);
   const milesHiked = nearestIdx >= 0
-    ? (nearestIdx + 1) * 0.5
+    ? (nearestIdx + 1) * 0.1
     : cumulativeDistance([[PCT_SOUTH_TERMINUS[0], PCT_SOUTH_TERMINUS[1]], ...coords]);
   const pctComplete = ((milesHiked / PCT_TOTAL_MILES) * 100).toFixed(1);
 

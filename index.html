@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PCT Hiker Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>PCT Hiker Tracker</h1>
+      <p id="hiker-name">Following the journey northbound ⛰️</p>
+    </header>
+
+    <div id="stats-panel">
+      <div class="stat">
+        <span class="stat-value" id="miles-hiked">—</span>
+        <span class="stat-label">Miles Hiked</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="pct-percent">—</span>
+        <span class="stat-label">% Complete</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="days-on-trail">—</span>
+        <span class="stat-label">Days on Trail</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="last-update">—</span>
+        <span class="stat-label">Last Update</span>
+      </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="message-panel">
+      <h2>Latest Message</h2>
+      <p id="latest-message">Loading...</p>
+    </div>
+
+    <div id="status-bar">
+      <span id="status-text">Loading location data...</span>
+      <span id="refresh-countdown"></span>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

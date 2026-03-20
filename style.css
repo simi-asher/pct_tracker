@@ -1,0 +1,185 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  padding: 12px 16px 8px;
+  background: #16213e;
+  border-bottom: 2px solid #0f3460;
+  text-align: center;
+}
+
+header h1 {
+  font-size: 1.4rem;
+  color: #e94560;
+  letter-spacing: 1px;
+}
+
+header p {
+  font-size: 0.85rem;
+  color: #a0a0b0;
+  margin-top: 2px;
+}
+
+/* Stats panel */
+#stats-panel {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 8px;
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #e94560;
+}
+
+.stat-label {
+  font-size: 0.65rem;
+  color: #a0a0b0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* Map */
+#map {
+  flex: 1;
+  min-height: 300px;
+  z-index: 1;
+}
+
+/* Message panel */
+#message-panel {
+  padding: 10px 16px;
+  background: #16213e;
+  border-top: 1px solid #0f3460;
+}
+
+#message-panel h2 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #a0a0b0;
+  margin-bottom: 4px;
+}
+
+#latest-message {
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  font-style: italic;
+}
+
+/* Status bar */
+#status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 16px;
+  background: #0f3460;
+  font-size: 0.72rem;
+  color: #a0a0b0;
+}
+
+#status-text {
+  flex: 1;
+}
+
+#refresh-countdown {
+  color: #e94560;
+  font-weight: 600;
+}
+
+/* Pulse animation for current location marker */
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.pulse-marker {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e94560;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.6);
+  animation: pulse 2s infinite;
+}
+
+/* Leaflet popup customization */
+.leaflet-popup-content-wrapper {
+  background: #16213e;
+  color: #e0e0e0;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+}
+
+.leaflet-popup-tip {
+  background: #16213e;
+}
+
+.leaflet-popup-content {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.popup-time {
+  color: #a0a0b0;
+  font-size: 0.75rem;
+}
+
+/* Error state */
+.error-text {
+  color: #e94560;
+  font-style: normal;
+}
+
+/* Desktop layout */
+@media (min-width: 768px) {
+  header h1 {
+    font-size: 1.8rem;
+  }
+
+  .stat-value {
+    font-size: 1.6rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+  }
+
+  #message-panel {
+    padding: 12px 24px;
+  }
+
+  #latest-message {
+    font-size: 1rem;
+  }
+}

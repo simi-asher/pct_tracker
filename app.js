@@ -39,6 +39,8 @@ const PCT_MILESTONES = [
 
 // Loaded PCT trail coordinates ([lon, lat] GeoJSON order) — populated by loadPctRoute()
 let trailCoords = null;
+// Cumulative trail miles for each coord index — populated by loadPctRoute()
+let trailCumulativeMiles = null;
 
 // Find the index of the trail point closest to [lat, lon]
 function findNearestTrailIndex(lat, lon) {
@@ -256,19 +258,21 @@ function calcStats(locations) {
   const coords = sorted.map(l => [l.lat, l.lon]);
 
   // Snap latest position to nearest trail point for accurate mileage.
-  // pct_trail.geojson has points at ~0.1 PCT mile intervals starting at ~mile 0.1,
-  // so index n → approx (n+1)*0.1 miles. Falls back to haversine before trail loads.
+  // Use pre-computed cumulative_miles from GeoJSON for exact distance.
+  // Falls back to straight-line haversine before trail is loaded.
   const nearestIdx = findNearestTrailIndex(latest.lat, latest.lon);
-  const milesHiked = nearestIdx >= 0
-    ? (nearestIdx + 1) * 0.1
+  const milesHiked = (nearestIdx >= 0 && trailCumulativeMiles)
+    ? trailCumulativeMiles[nearestIdx]
     : cumulativeDistance([[PCT_SOUTH_TERMINUS[0], PCT_SOUTH_TERMINUS[1]], ...coords]);
-  const pctComplete = ((milesHiked / PCT_TOTAL_MILES) * 100).toFixed(1);
+  const pctComplete = ((milesHiked / PCT_TOTAL_MILES) * 100).toFixed(2);
 
+  // Days on trail = calendar days from start date to today (start day counts as day 1)
   const startDate = new Date(TRAIL_START_DATE);
-  const lastDate = new Date(latest.timestamp);
-  const daysOnTrail = Math.max(0, Math.floor((lastDate - startDate) / (1000 * 60 * 60 * 24)));
+  const today = new Date();
+  const daysOnTrail = Math.max(1, Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1);
 
-  return { milesHiked: Math.round(milesHiked), pctComplete, daysOnTrail, latestTimestamp: lastDate, latest, sorted };
+  const lastDate = new Date(latest.timestamp);
+  return { milesHiked, pctComplete, daysOnTrail, latestTimestamp: lastDate, latest, sorted };
 }
 
 // ============================================================
@@ -294,13 +298,14 @@ let currentLatestTimestamp = null;
 
 function updateStatsPanel(stats) {
   const milesEl = document.getElementById('miles-hiked');
+  const milesRounded = Math.round(stats.milesHiked);
   const currentDisplay = parseInt((milesEl.textContent || '0').replace(/,/g, ''), 10) || 0;
 
-  animateCounter(milesEl, currentDisplay, stats.milesHiked);
+  animateCounter(milesEl, currentDisplay, milesRounded);
   updateProgressBar(stats.milesHiked);
 
   const milesOfTotal = document.getElementById('miles-of-total');
-  if (milesOfTotal) milesOfTotal.textContent = `${stats.milesHiked.toLocaleString()} of ${PCT_TOTAL_MILES.toLocaleString()} miles`;
+  if (milesOfTotal) milesOfTotal.textContent = `${milesRounded.toLocaleString()} of ${PCT_TOTAL_MILES.toLocaleString()} miles`;
 
   const pctEl = document.getElementById('pct-percent');
   if (pctEl) pctEl.textContent = `${stats.pctComplete}%`;
@@ -414,8 +419,9 @@ async function loadPctRoute() {
     const resp = await fetch(PCT_GEOJSON_URL);
     if (!resp.ok) return;
     const geojson = await resp.json();
-    // Store coordinates globally for snapping and hiked-segment rendering
+    // Store coordinates and pre-computed cumulative miles globally
     trailCoords = geojson.features[0].geometry.coordinates; // [lon, lat] pairs
+    trailCumulativeMiles = geojson.features[0].properties.cumulative_miles || null;
     L.geoJSON(geojson, {
       style: { color: '#2fb8a0', weight: 3, opacity: 0.8 },
     }).addTo(trailLayer);

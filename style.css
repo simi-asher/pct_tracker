@@ -155,6 +155,31 @@ header p {
   font-size: 0.75rem;
 }
 
+/* Layer control dark theme */
+.leaflet-control-layers {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  color: #e0e0e0;
+}
+
+.leaflet-control-layers-toggle {
+  background-color: #16213e;
+}
+
+.leaflet-control-layers-expanded {
+  padding: 8px 12px;
+}
+
+.leaflet-control-layers label {
+  color: #e0e0e0;
+  font-size: 0.85rem;
+}
+
+.leaflet-control-layers-separator {
+  border-top: 1px solid #0f3460;
+}
+
 /* Error state */
 .error-text {
   color: #e94560;

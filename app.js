@@ -38,15 +38,32 @@ const map = L.map('map', {
   attributionControl: true,
 }).setView([36.5, -118.5], 6);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  maxZoom: 18,
-}).addTo(map);
+const baseLayers = {
+  'Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    maxZoom: 18,
+  }),
+  'Street': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 18,
+  }),
+  'Topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: 'Map data: © <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: © <a href="https://opentopomap.org">OpenTopoMap</a>',
+    maxZoom: 17,
+  }),
+};
+baseLayers['Satellite'].addTo(map);
 
 // Layer groups
 const trailLayer = L.layerGroup().addTo(map);
 const historyLayer = L.layerGroup().addTo(map);
 const markerLayer = L.layerGroup().addTo(map);
+
+L.control.layers(baseLayers, {
+  'PCT Trail': trailLayer,
+  'History': historyLayer,
+  'Current Location': markerLayer,
+}).addTo(map);
 
 // ============================================================
 // Parse Google Sheets CSV response
@@ -67,7 +84,7 @@ function parseSheetResponse(text) {
       lon,
       message: (cols[3] || '').trim(),
     };
-  }).filter(r => !isNaN(r.lat) && !isNaN(r.lon));
+  }).filter(r => !isNaN(r.lat) && !isNaN(r.lon) && new Date(r.timestamp) >= new Date(TRAIL_START_DATE));
 }
 
 // Minimal CSV line parser that handles double-quoted fields
@@ -98,6 +115,9 @@ async function fetchLocations() {
   const resp = await fetch(SHEET_JSON_URL);
   if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
   const text = await resp.text();
+  if (text.trimStart().startsWith('<')) {
+    throw new Error('Sheet returned HTML instead of CSV — verify it is published: File → Share → Publish to web → CSV');
+  }
   return parseSheetResponse(text);
 }
 
@@ -259,7 +279,7 @@ function formatTimestamp(ts) {
 // ============================================================
 async function loadPctRoute() {
   const PCT_GEOJSON_URL =
-    'https://raw.githubusercontent.com/pctadmin/pct-data/master/pct-sections-ca.geojson';
+    'https://raw.githubusercontent.com/bwainstock/halfmile-geojson/master/tracks.geojson';
   try {
     const resp = await fetch(PCT_GEOJSON_URL);
     if (!resp.ok) return;

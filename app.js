@@ -37,6 +37,20 @@ const PCT_MILESTONES = [
   { label: 'Manning Park', mile: 2653, emoji: '🏁' },
 ];
 
+// Loaded PCT trail coordinates ([lon, lat] GeoJSON order) — populated by loadPctRoute()
+let trailCoords = null;
+
+// Find the index of the trail point closest to [lat, lon]
+function findNearestTrailIndex(lat, lon) {
+  if (!trailCoords) return -1;
+  let minDist = Infinity, minIdx = 0;
+  for (let i = 0; i < trailCoords.length; i++) {
+    const d = haversineMiles([lat, lon], [trailCoords[i][1], trailCoords[i][0]]);
+    if (d < minDist) { minDist = d; minIdx = i; }
+  }
+  return minIdx;
+}
+
 // ============================================================
 // Map setup
 // ============================================================
@@ -240,7 +254,14 @@ function calcStats(locations) {
   const latest = sorted[sorted.length - 1];
 
   const coords = sorted.map(l => [l.lat, l.lon]);
-  const milesHiked = cumulativeDistance([[PCT_SOUTH_TERMINUS[0], PCT_SOUTH_TERMINUS[1]], ...coords]);
+
+  // Snap latest position to nearest trail point for accurate mileage.
+  // Each trail point in pct_trail.geojson is 0.5 PCT miles apart starting at mile 0.5,
+  // so index n → mile (n+1)*0.5. Fall back to straight-line haversine if trail not yet loaded.
+  const nearestIdx = findNearestTrailIndex(latest.lat, latest.lon);
+  const milesHiked = nearestIdx >= 0
+    ? (nearestIdx + 1) * 0.5
+    : cumulativeDistance([[PCT_SOUTH_TERMINUS[0], PCT_SOUTH_TERMINUS[1]], ...coords]);
   const pctComplete = ((milesHiked / PCT_TOTAL_MILES) * 100).toFixed(1);
 
   const startDate = new Date(TRAIL_START_DATE);
@@ -314,13 +335,29 @@ function renderMap(stats) {
   const { sorted, latest } = stats;
   const coords = sorted.map(l => [l.lat, l.lon]);
 
-  // Breadcrumb line always starts from Campo (southern terminus), even with one GPS point
-  L.polyline([PCT_SOUTH_TERMINUS, ...coords], {
-    color: '#e94560',
-    weight: 3,
-    opacity: 0.7,
-    dashArray: '6, 4',
-  }).addTo(historyLayer);
+  // Draw "hiked so far" segment along actual PCT trail coordinates.
+  // Slice trail from start to the point nearest the hiker's current location.
+  if (trailCoords) {
+    const nearestIdx = findNearestTrailIndex(latest.lat, latest.lon);
+    // trailCoords is [lon, lat]; Leaflet needs [lat, lon]
+    const hikedLatLons = trailCoords.slice(0, nearestIdx + 1).map(c => [c[1], c[0]]);
+    if (hikedLatLons.length > 0) {
+      L.polyline(hikedLatLons, {
+        color: '#e94560',
+        weight: 3,
+        opacity: 0.85,
+        dashArray: '6, 4',
+      }).addTo(historyLayer);
+    }
+  } else {
+    // Fallback before trail loads: straight line from Campo
+    L.polyline([PCT_SOUTH_TERMINUS, ...coords], {
+      color: '#e94560',
+      weight: 3,
+      opacity: 0.7,
+      dashArray: '6, 4',
+    }).addTo(historyLayer);
+  }
 
   // Historical check-in dots (all except the latest)
   sorted.slice(0, -1).forEach(loc => {
@@ -352,7 +389,7 @@ function renderMap(stats) {
     .addTo(markerLayer)
     .openPopup();
 
-  // Fit bounds to show Campo through current location
+  // Fit bounds from Campo through current location
   map.fitBounds([PCT_SOUTH_TERMINUS, ...coords], { padding: [40, 40] });
 }
 
@@ -376,6 +413,8 @@ async function loadPctRoute() {
     const resp = await fetch(PCT_GEOJSON_URL);
     if (!resp.ok) return;
     const geojson = await resp.json();
+    // Store coordinates globally for snapping and hiked-segment rendering
+    trailCoords = geojson.features[0].geometry.coordinates; // [lon, lat] pairs
     L.geoJSON(geojson, {
       style: { color: '#2fb8a0', weight: 3, opacity: 0.8 },
     }).addTo(trailLayer);
@@ -395,7 +434,6 @@ async function update() {
     const stats = calcStats(locations);
     if (!stats) {
       document.getElementById('status-text').textContent = 'No location data yet.';
-      document.getElementById('latest-message').textContent = 'Waiting for first check-in...';
       return;
     }
     updateStatsPanel(stats);
@@ -433,6 +471,10 @@ function startCountdown() {
 // Boot
 // ============================================================
 (async () => {
+  // Load PCT trail first (local asset, ~100ms) so snapping and hiked-segment
+  // rendering work correctly for both cached and fresh data renders.
+  await loadPctRoute();
+
   // Render cached data immediately so the UI isn't blank
   const cachedLocations = loadCachedLocationsIfFresh();
   if (cachedLocations) {
@@ -443,9 +485,6 @@ function startCountdown() {
       document.getElementById('status-text').textContent = 'Loading fresh data...';
     }
   }
-
-  // Load PCT trail route (local asset — fast)
-  loadPctRoute();
 
   // Initial data load
   await update();

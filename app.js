@@ -280,8 +280,10 @@ function formatTimestamp(ts) {
 async function loadPctRoute() {
   const PCT_GEOJSON_URL =
     'https://raw.githubusercontent.com/bwainstock/halfmile-geojson/master/tracks.geojson';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const resp = await fetch(PCT_GEOJSON_URL);
+    const resp = await fetch(PCT_GEOJSON_URL, { signal: controller.signal });
     if (!resp.ok) return;
     const geojson = await resp.json();
     L.geoJSON(geojson, {
@@ -289,7 +291,9 @@ async function loadPctRoute() {
     }).addTo(trailLayer);
   } catch {
     // Non-fatal: PCT route overlay is cosmetic enhancement only
-    console.info('PCT route GeoJSON not loaded (CORS or network)');
+    console.info('PCT route GeoJSON not loaded (CORS, network, or timeout)');
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

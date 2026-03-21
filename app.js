@@ -53,6 +53,29 @@ function findNearestTrailIndex(lat, lon) {
   return minIdx;
 }
 
+// Returns the straight-line distance (miles) from [lat,lon] to the nearest trail point
+function distanceToTrailMiles(lat, lon, nearestIdx) {
+  if (!trailCoords || nearestIdx < 0) return 0;
+  const c = trailCoords[nearestIdx];
+  return haversineMiles([lat, lon], [c[1], c[0]]);
+}
+
+// Determine hiker status:
+//   > 0.5 miles from trail  → in a town / resupply
+//   on trail, 05:00–19:00 PT → hiking
+//   on trail, 19:00–05:00 PT → camping
+function getHikerStatus(lat, lon, nearestIdx) {
+  if (distanceToTrailMiles(lat, lon, nearestIdx) > 0.5) {
+    return { text: 'Picking up Resupply', emoji: '🏪' };
+  }
+  const ptHour = parseInt(
+    new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hour12: false })
+  );
+  return (ptHour >= 5 && ptHour < 19)
+    ? { text: 'Hiking', emoji: '🥾' }
+    : { text: 'Camping', emoji: '⛺' };
+}
+
 // ============================================================
 // Map setup
 // ============================================================
@@ -309,8 +332,9 @@ function updateStatsPanel(stats) {
   animateCounter(milesEl, currentDisplay, milesRounded);
   updateProgressBar(stats.milesHiked);
 
+  const kmHiked = Math.round(stats.milesHiked * 1.60934);
   const milesOfTotal = document.getElementById('miles-of-total');
-  if (milesOfTotal) milesOfTotal.textContent = `${milesRounded.toLocaleString()} of ${PCT_TOTAL_MILES.toLocaleString()} miles`;
+  if (milesOfTotal) milesOfTotal.textContent = `${milesRounded.toLocaleString()} miles / ${kmHiked.toLocaleString()} km`;
 
   const pctEl = document.getElementById('pct-percent');
   if (pctEl) pctEl.textContent = `${stats.pctComplete}%`;
@@ -323,6 +347,11 @@ function updateStatsPanel(stats) {
 
   const lastUpdateEl = document.getElementById('last-update');
   if (lastUpdateEl) lastUpdateEl.textContent = formatRelativeTime(stats.latestTimestamp);
+
+  const nearestIdx = findNearestTrailIndex(stats.latest.lat, stats.latest.lon);
+  const status = getHikerStatus(stats.latest.lat, stats.latest.lon, nearestIdx);
+  const statusEl = document.getElementById('hiker-status');
+  if (statusEl) statusEl.textContent = `${status.emoji} ${status.text}`;
 
   currentLatestTimestamp = stats.latestTimestamp;
   prevMilesHiked = stats.milesHiked;

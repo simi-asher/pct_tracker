@@ -53,6 +53,43 @@ function findNearestTrailIndex(lat, lon) {
   return minIdx;
 }
 
+// Known PCT resupply towns — many are ON the trail so distance-to-trail
+// alone can't detect them. Each entry has [lat, lon, radiusMi].
+const PCT_RESUPPLY_TOWNS = [
+  [32.6878, -116.5245, 1.5],  // Lake Morena (~mile 20)
+  [32.8649, -116.4225, 1.5],  // Mount Laguna (~mile 42)
+  [33.0786, -116.6022, 3.0],  // Julian
+  [33.2787, -116.6416, 1.5],  // Warner Springs (~mile 109)
+  [33.7432, -116.7190, 3.0],  // Idyllwild (~mile 179)
+  [34.2590, -116.8542, 2.5],  // Big Bear City (~mile 266)
+  [34.3628, -117.6315, 2.0],  // Wrightwood (~mile 369)
+  [34.4917, -118.3150, 2.0],  // Agua Dulce (~mile 454)
+  [35.1323, -118.4487, 4.0],  // Tehachapi (~mile 558)
+  [35.9647, -118.0928, 1.5],  // Kennedy Meadows (~mile 702)
+  [36.8032, -118.2005, 6.0],  // Independence (~mile 789)
+  [37.3635, -118.3952, 6.0],  // Bishop (~mile 857)
+  [37.6485, -118.9721, 4.0],  // Mammoth Lakes (~mile 906)
+  [37.9563, -119.4703, 2.0],  // Tuolumne Meadows (~mile 942)
+  [38.5954, -119.7729, 2.0],  // Bridgeport/Sonora Pass area
+  [38.9357, -119.9773, 6.0],  // South Lake Tahoe (~mile 1092)
+  [39.5704, -120.6363, 2.0],  // Sierra City (~mile 1195)
+  [40.0012, -121.2465, 1.5],  // Belden (~mile 1284)
+  [40.3049, -121.2311, 3.0],  // Chester (~mile 1331)
+  [40.8827, -121.6588, 3.0],  // Burney (~mile 1414)
+  [41.3099, -122.3111, 4.0],  // Mount Shasta (~mile 1501)
+  [41.4571, -122.8955, 2.0],  // Etna (~mile 1577)
+  [41.8425, -123.1900, 1.5],  // Seiad Valley (~mile 1647)
+  [42.1946, -122.7095, 4.0],  // Ashland OR (~mile 1718)
+  [42.9446, -122.1090, 2.5],  // Crater Lake (~mile 1820)
+  [43.5244, -122.0026, 1.5],  // Shelter Cove (~mile 1907)
+  [44.2901, -121.5491, 4.0],  // Sisters OR (~mile 1981)
+  [45.6694, -121.8962, 2.5],  // Cascade Locks (~mile 2147)
+  [46.6380, -121.3895, 1.5],  // White Pass (~mile 2294)
+  [47.4248, -121.4130, 1.5],  // Snoqualmie Pass (~mile 2393)
+  [47.7107, -121.3578, 2.5],  // Skykomish (~mile 2464)
+  [48.3149, -120.6769, 2.0],  // Stehekin (~mile 2572)
+];
+
 // Returns the straight-line distance (miles) from [lat,lon] to the nearest trail point
 function distanceToTrailMiles(lat, lon, nearestIdx) {
   if (!trailCoords || nearestIdx < 0) return 0;
@@ -61,10 +98,16 @@ function distanceToTrailMiles(lat, lon, nearestIdx) {
 }
 
 // Determine hiker status:
-//   > 0.5 miles from trail  → in a town / resupply
-//   on trail, 05:00–19:00 PT → hiking
-//   on trail, 19:00–05:00 PT → camping
+//   within a known PCT town radius → Picking up Resupply (catches on-trail towns)
+//   > 1 mile from trail            → Picking up Resupply (catches unlisted stops)
+//   on trail, 05:00–19:00 PT       → Hiking
+//   on trail, 19:00–05:00 PT       → Camping
 function getHikerStatus(lat, lon, nearestIdx) {
+  for (const [tLat, tLon, r] of PCT_RESUPPLY_TOWNS) {
+    if (haversineMiles([lat, lon], [tLat, tLon]) <= r) {
+      return { text: 'Picking up Resupply', emoji: '🏪' };
+    }
+  }
   if (distanceToTrailMiles(lat, lon, nearestIdx) > 1.0) {
     return { text: 'Picking up Resupply', emoji: '🏪' };
   }

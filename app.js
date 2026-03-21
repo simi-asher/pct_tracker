@@ -26,15 +26,22 @@ const CACHE_KEY = 'pct_locations_v1';
 const CACHE_TS_KEY = 'pct_locations_ts_v1';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
 
-// PCT milestones for progress bar tooltips
+// State boundary miles along PCT
+const CA_END_MILE = 1702;
+const OR_END_MILE = 1977;
+
+// State trail colors
+const STATE_COLORS = { ca: '#e8943a', or: '#5a9e50', wa: '#4a7bc8' };
+
+// PCT milestones for progress bar pins
 const PCT_MILESTONES = [
-  { label: 'Campo',        mile: 0,    emoji: '🚀' },
-  { label: 'Kennedy Mdws', mile: 702,  emoji: '⛺' },
-  { label: 'Yosemite',     mile: 942,  emoji: '🏔️' },
-  { label: 'OR Border',    mile: 1702, emoji: '🌲' },
-  { label: 'Crater Lake',  mile: 1820, emoji: '🌋' },
-  { label: 'WA Border',    mile: 1977, emoji: '🦅' },
-  { label: 'Manning Park', mile: 2653, emoji: '🏁' },
+  { label: 'Campo',        mile: 0,    emoji: '🚀', color: '#4a90d9' },
+  { label: 'Yosemite',     mile: 942,  emoji: '🏔️', color: '#4a90d9' },
+  { label: 'OR Border',    mile: 1702, emoji: '🌲', color: '#5a9e50' },
+  { label: 'Crater Lake',  mile: 1820, emoji: '🌋', color: '#5a9e50' },
+  { label: 'WA Border',    mile: 1977, emoji: '🦅', color: '#4a7bc8' },
+  { label: 'Snoqualmie',   mile: 2393, emoji: '⛷️', color: '#4a7bc8' },
+  { label: 'Manning Park', mile: 2653, emoji: '🏁', color: '#4a7bc8' },
 ];
 
 // Loaded PCT trail coordinates ([lon, lat] GeoJSON order) — populated by loadPctRoute()
@@ -105,11 +112,11 @@ function distanceToTrailMiles(lat, lon, nearestIdx) {
 function getHikerStatus(lat, lon, nearestIdx) {
   for (const [tLat, tLon, r] of PCT_RESUPPLY_TOWNS) {
     if (haversineMiles([lat, lon], [tLat, tLon]) <= r) {
-      return { text: 'Picking up Resupply', emoji: '🏪' };
+      return { text: 'Picking up Resupply', emoji: '📦' };
     }
   }
   if (distanceToTrailMiles(lat, lon, nearestIdx) > 1.0) {
-    return { text: 'Picking up Resupply', emoji: '🏪' };
+    return { text: 'Picking up Resupply', emoji: '📦' };
   }
   const ptHour = parseInt(
     new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hour12: false })
@@ -127,38 +134,49 @@ const map = L.map('map', {
   attributionControl: true,
 }).setView([36.5, -118.5], 6);
 
-const baseLayers = {
-  'Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-    maxZoom: 18,
+const TILE_LAYERS = {
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap, © CARTO', maxZoom: 19,
   }),
-  'Street': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 18,
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '© Esri', maxZoom: 19,
   }),
-  'Topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    attribution: 'Map data: © <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: © <a href="https://opentopomap.org">OpenTopoMap</a>',
-    maxZoom: 17,
+  street: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap, © CARTO', maxZoom: 19,
   }),
 };
-baseLayers['Satellite'].addTo(map);
+let activeLayer = 'dark';
+TILE_LAYERS.dark.addTo(map);
 
-// Boundaries + labels overlay (state/country lines on top of satellite)
-const boundariesLayer = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-  { attribution: 'Boundaries &copy; Esri', maxZoom: 18, opacity: 1 }
-).addTo(map);
+// Custom emoji map switcher control (top-right)
+const MapSwitcherControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd() {
+    const div = L.DomUtil.create('div', 'map-switcher');
+    div.innerHTML = `
+      <button data-layer="dark" class="active">🌙 Dark</button>
+      <button data-layer="satellite">🛰️ Satellite</button>
+      <button data-layer="street">🗺️ Street</button>
+    `;
+    L.DomEvent.disableClickPropagation(div);
+    div.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const key = btn.dataset.layer;
+      if (key === activeLayer) return;
+      map.removeLayer(TILE_LAYERS[activeLayer]);
+      TILE_LAYERS[key].addTo(map);
+      activeLayer = key;
+      div.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+    });
+    return div;
+  }
+});
+new MapSwitcherControl().addTo(map);
 
 const trailLayer = L.layerGroup().addTo(map);
 const historyLayer = L.layerGroup().addTo(map);
 const markerLayer = L.layerGroup().addTo(map);
-
-L.control.layers(baseLayers, {
-  'Boundaries & Labels': boundariesLayer,
-  'PCT Trail': trailLayer,
-  'History': historyLayer,
-  'Current Location': markerLayer,
-}).addTo(map);
 
 // ============================================================
 // Animated counter — eases from `from` to `to` over ~600ms
@@ -195,6 +213,33 @@ function updateProgressBar(milesHiked) {
   const dot = document.getElementById('current-dot-wrap');
   if (fill) fill.style.width = `${pct}%`;
   if (dot) dot.style.left = `${pct}%`;
+}
+
+// ============================================================
+// Milestone pins on progress bar
+// ============================================================
+function renderMilestonePins() {
+  const wrap = document.getElementById('progress-bar-wrap');
+  wrap.querySelectorAll('.milestone-pin').forEach(el => el.remove());
+  PCT_MILESTONES.forEach(m => {
+    const pct = (m.mile / PCT_TOTAL_MILES) * 100;
+    const pin = document.createElement('div');
+    pin.className = 'milestone-pin';
+    pin.style.left = pct + '%';
+    pin.title = `${m.label} — Mile ${m.mile}`;
+    pin.innerHTML = `<div class="pin-icon" style="background:${m.color}"><span>${m.emoji}</span></div><div class="pin-line"></div>`;
+    wrap.appendChild(pin);
+  });
+}
+
+function renderMilestoneLegend() {
+  const el = document.getElementById('milestone-legend');
+  el.innerHTML = PCT_MILESTONES.map(m =>
+    `<div class="milestone-legend-item">
+       <div class="milestone-legend-dot" style="background:${m.color}"></div>
+       <span>${m.emoji} ${m.label} (mi ${m.mile})</span>
+     </div>`
+  ).join('');
 }
 
 // ============================================================
@@ -362,6 +407,108 @@ function formatRelativeTime(date) {
 }
 
 // ============================================================
+// Temperature fetch (Open-Meteo, free, no API key)
+// ============================================================
+const WEATHER_CACHE_KEY = 'pct_weather';
+const WEATHER_CACHE_TS_KEY = 'pct_weather_ts';
+const WEATHER_TTL_MS = 30 * 60 * 1000; // 30 min
+
+async function fetchTemperature(lat, lon) {
+  const cached = localStorage.getItem(WEATHER_CACHE_KEY);
+  const ts = parseInt(localStorage.getItem(WEATHER_CACHE_TS_KEY) || '0');
+  if (cached && Date.now() - ts < WEATHER_TTL_MS) {
+    renderTemperature(JSON.parse(cached));
+    return;
+  }
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m&temperature_unit=celsius`;
+    const r = await fetch(url);
+    const data = await r.json();
+    const tempC = data.current.temperature_2m;
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(tempC));
+    localStorage.setItem(WEATHER_CACHE_TS_KEY, Date.now().toString());
+    renderTemperature(tempC);
+  } catch(e) { console.warn('Weather fetch failed', e); }
+}
+
+function renderTemperature(tempC) {
+  const tempF = Math.round(tempC * 9/5 + 32);
+  const el = document.getElementById('temp-display');
+  if (el) el.textContent = `${tempF}°F / ${Math.round(tempC)}°C`;
+}
+
+// ============================================================
+// Elevation chart (Chart.js + pct_elevation.json)
+// ============================================================
+let elevationData = null;
+let elevationChart = null;
+
+async function loadElevationData() {
+  try {
+    const r = await fetch('./pct_elevation.json');
+    elevationData = await r.json(); // [{mile, elevation_m}]
+  } catch(e) { console.warn('Elevation data unavailable', e); }
+}
+
+function renderElevationChart(milesHiked) {
+  if (!elevationData) return;
+  const hiked = elevationData.filter(d => d.mile <= milesHiked);
+  if (hiked.length < 2) return;
+
+  const labels = hiked.map(d => d.mile);
+  const data = hiked.map(d => Math.round(d.elevation_m * 3.28084)); // m → ft
+  const current = data[data.length - 1];
+  const low = Math.min(...data), high = Math.max(...data);
+  const gained = data.reduce((acc, v, i) => i > 0 && v > data[i-1] ? acc + (v - data[i-1]) : acc, 0);
+
+  const elevCurrentEl = document.getElementById('elev-current');
+  const elevLowEl = document.getElementById('elev-low');
+  const elevHighEl = document.getElementById('elev-high');
+  const elevGainedEl = document.getElementById('elev-gained');
+  if (elevCurrentEl) elevCurrentEl.textContent = current.toLocaleString() + ' ft';
+  if (elevLowEl) elevLowEl.textContent = low.toLocaleString() + ' ft';
+  if (elevHighEl) elevHighEl.textContent = high.toLocaleString() + ' ft';
+  if (elevGainedEl) elevGainedEl.textContent = Math.round(gained).toLocaleString() + ' ft';
+
+  const canvas = document.getElementById('elevation-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (elevationChart) elevationChart.destroy();
+  elevationChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: '#2fb8a0',
+        borderWidth: 1.5,
+        backgroundColor: 'rgba(47,184,160,0.1)',
+        fill: true,
+        pointRadius: 0,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => `${ctx.parsed.y.toLocaleString()} ft` }
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          ticks: { color: 'rgba(255,255,255,0.55)', font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+// ============================================================
 // Update stats panel + animated counter + progress bar
 // ============================================================
 let prevMilesHiked = 0;
@@ -398,6 +545,9 @@ function updateStatsPanel(stats) {
 
   currentLatestTimestamp = stats.latestTimestamp;
   prevMilesHiked = stats.milesHiked;
+
+  renderElevationChart(stats.milesHiked);
+  fetchTemperature(stats.latest.lat, stats.latest.lon); // non-blocking, fire-and-forget
 }
 
 // Live-ticking timestamp — updates "Last GPS update" every 60s
@@ -489,19 +639,43 @@ function formatTimestamp(ts) {
 
 // ============================================================
 // PCT route overlay — loads from local asset for fast rendering
+// State-colored polylines: CA=orange, OR=green, WA=blue
 // ============================================================
+function buildStatePolylines(coords, cumMiles) {
+  const ca = [], or = [], wa = [];
+  coords.forEach((c, i) => {
+    const m = cumMiles[i];
+    const pt = [c[1], c[0]]; // [lon,lat] → [lat,lon]
+    if (m <= CA_END_MILE)      ca.push(pt);
+    else if (m <= OR_END_MILE) or.push(pt);
+    else                        wa.push(pt);
+  });
+  // Add last CA point to OR start (continuity at border)
+  if (ca.length) or.unshift(ca[ca.length - 1]);
+  if (or.length) wa.unshift(or[or.length - 1]);
+  return { ca, or, wa };
+}
+
 async function loadPctRoute() {
   const PCT_GEOJSON_URL = './pct_trail.geojson';
   try {
     const resp = await fetch(PCT_GEOJSON_URL);
     if (!resp.ok) return;
     const geojson = await resp.json();
-    // Store coordinates and pre-computed cumulative miles globally
     trailCoords = geojson.features[0].geometry.coordinates; // [lon, lat] pairs
     trailCumulativeMiles = geojson.features[0].properties.cumulative_miles || null;
-    L.geoJSON(geojson, {
-      style: { color: '#2fb8a0', weight: 3, opacity: 0.8 },
-    }).addTo(trailLayer);
+
+    if (trailCumulativeMiles) {
+      const segs = buildStatePolylines(trailCoords, trailCumulativeMiles);
+      L.polyline(segs.ca, { color: STATE_COLORS.ca, weight: 3, opacity: 0.8 }).addTo(trailLayer);
+      L.polyline(segs.or, { color: STATE_COLORS.or, weight: 3, opacity: 0.8 }).addTo(trailLayer);
+      L.polyline(segs.wa, { color: STATE_COLORS.wa, weight: 3, opacity: 0.8 }).addTo(trailLayer);
+    } else {
+      // Fallback: single teal line if no cumulative miles data
+      L.geoJSON(geojson, {
+        style: { color: '#2fb8a0', weight: 3, opacity: 0.8 },
+      }).addTo(trailLayer);
+    }
   } catch {
     console.info('PCT route GeoJSON not loaded');
   }
@@ -555,9 +729,12 @@ function startCountdown() {
 // Boot
 // ============================================================
 (async () => {
-  // Load PCT trail first (local asset, ~100ms) so snapping and hiked-segment
-  // rendering work correctly for both cached and fresh data renders.
-  await loadPctRoute();
+  // Load PCT trail and elevation data in parallel (local assets, ~100ms each)
+  await Promise.all([loadPctRoute(), loadElevationData()]);
+
+  // Render milestone pins and legend once after trail loads
+  renderMilestonePins();
+  renderMilestoneLegend();
 
   // Render cached data immediately so the UI isn't blank
   const cachedLocations = loadCachedLocationsIfFresh();

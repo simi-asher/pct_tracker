@@ -6,6 +6,7 @@
   <title>Follow Ananya's PCT Journey</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="app">
@@ -40,6 +41,7 @@
         <span style="flex:275">Oregon</span>
         <span style="flex:676">Washington</span>
       </div>
+      <div class="milestone-legend" id="milestone-legend"></div>
     </section>
 
     <div class="stats-strip">
@@ -51,9 +53,35 @@
         <span class="stat-value teal" id="pct-percent-stat">—%</span>
         <span class="stat-label">% Complete</span>
       </div>
+      <div class="stat">
+        <span class="stat-value teal" id="temp-display">—</span>
+        <span class="stat-label">Temperature</span>
+      </div>
     </div>
 
+    <section class="elevation-section">
+      <div class="elevation-header">
+        <div class="elev-current">
+          <span class="elev-label">CURRENT ELEVATION</span>
+          <span class="elev-value teal" id="elev-current">—</span>
+        </div>
+      </div>
+      <canvas id="elevation-chart" height="120"></canvas>
+      <div class="elevation-footer">
+        <div class="elev-stat"><span class="elev-stat-label">LOW</span><span id="elev-low">—</span></div>
+        <div class="elev-stat"><span class="elev-stat-label">HIGH</span><span id="elev-high">—</span></div>
+        <div class="elev-stat"><span class="elev-stat-label">GAINED</span><span id="elev-gained">—</span></div>
+      </div>
+    </section>
+
     <div id="map"></div>
+
+    <div class="map-legend">
+      <div class="legend-item"><span class="legend-line" style="background:#e8943a"></span> California</div>
+      <div class="legend-item"><span class="legend-line" style="background:#5a9e50"></span> Oregon</div>
+      <div class="legend-item"><span class="legend-line" style="background:#4a7bc8"></span> Washington</div>
+      <div class="legend-item"><span class="legend-dot"></span> Current Position</div>
+    </div>
 
     <div id="status-bar">
       <span id="status-text">Loading location data...</span>

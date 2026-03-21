@@ -266,10 +266,15 @@ function calcStats(locations) {
     : cumulativeDistance([[PCT_SOUTH_TERMINUS[0], PCT_SOUTH_TERMINUS[1]], ...coords]);
   const pctComplete = ((milesHiked / PCT_TOTAL_MILES) * 100).toFixed(2);
 
-  // Days on trail = calendar days from start date to today (start day counts as day 1)
-  const startDate = new Date(TRAIL_START_DATE);
-  const today = new Date();
-  const daysOnTrail = Math.max(1, Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1);
+  // Days on trail = calendar days from start date to today (start day = day 1).
+  // Parse start date as LOCAL midnight (not UTC) to avoid timezone drift where
+  // new Date('YYYY-MM-DD') gives UTC midnight which can read as the previous day
+  // in US timezones, causing the day count to jump an extra day by evening.
+  const [sy, sm, sd] = TRAIL_START_DATE.split('-').map(Number);
+  const startMidnight = new Date(sy, sm - 1, sd);
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const daysOnTrail = Math.floor((todayMidnight - startMidnight) / (1000 * 60 * 60 * 24)) + 1;
 
   const lastDate = new Date(latest.timestamp);
   return { milesHiked, pctComplete, daysOnTrail, latestTimestamp: lastDate, latest, sorted };

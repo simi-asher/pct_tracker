@@ -134,19 +134,19 @@ const map = L.map('map', {
   attributionControl: true,
 }).setView([36.5, -118.5], 6);
 
-const TILE_LAYERS = {
-  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap, © CARTO', maxZoom: 19,
-  }),
-  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '© Esri', maxZoom: 19,
-  }),
-  street: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap, © CARTO', maxZoom: 19,
-  }),
+// Tile layers are created lazily — only allocated when first requested
+const TILE_CONFIGS = {
+  dark:      ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',           { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }],
+  satellite: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 19 }],
+  street:    ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }],
 };
+const TILE_LAYERS = {};
+function getTileLayer(key) {
+  if (!TILE_LAYERS[key]) TILE_LAYERS[key] = L.tileLayer(...TILE_CONFIGS[key]);
+  return TILE_LAYERS[key];
+}
 let activeLayer = 'dark';
-TILE_LAYERS.dark.addTo(map);
+getTileLayer('dark').addTo(map);
 
 // Custom emoji map switcher control (top-right)
 const MapSwitcherControl = L.Control.extend({
@@ -164,8 +164,8 @@ const MapSwitcherControl = L.Control.extend({
       if (!btn) return;
       const key = btn.dataset.layer;
       if (key === activeLayer) return;
-      map.removeLayer(TILE_LAYERS[activeLayer]);
-      TILE_LAYERS[key].addTo(map);
+      map.removeLayer(getTileLayer(activeLayer));
+      getTileLayer(key).addTo(map);
       activeLayer = key;
       div.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
     });
@@ -455,11 +455,17 @@ function renderElevationChart(milesHiked) {
   const hiked = elevationData.filter(d => d.mile <= milesHiked);
   if (hiked.length < 2) return;
 
-  const labels = hiked.map(d => d.mile);
-  const data = hiked.map(d => Math.round(d.elevation_m * 3.28084)); // m → ft
+  // Downsample to at most 500 points so Chart.js stays lightweight
+  const step = Math.max(1, Math.floor(hiked.length / 500));
+  const sampled = hiked.filter((_, i) => i % step === 0);
+
+  const labels = sampled.map(d => d.mile);
+  const data = sampled.map(d => Math.round(d.elevation_m * 3.28084)); // m → ft
+  // Use full dataset for accurate stats, sampled data for chart rendering
+  const allFt = hiked.map(d => Math.round(d.elevation_m * 3.28084));
   const current = data[data.length - 1];
-  const low = Math.min(...data), high = Math.max(...data);
-  const gained = data.reduce((acc, v, i) => i > 0 && v > data[i-1] ? acc + (v - data[i-1]) : acc, 0);
+  const low = Math.min(...allFt), high = Math.max(...allFt);
+  const gained = allFt.reduce((acc, v, i) => i > 0 && v > allFt[i-1] ? acc + (v - allFt[i-1]) : acc, 0);
 
   const elevCurrentEl = document.getElementById('elev-current');
   const elevLowEl = document.getElementById('elev-low');

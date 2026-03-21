@@ -136,7 +136,7 @@ const map = L.map('map', {
 
 // Tile layers are created lazily — only allocated when first requested
 const TILE_CONFIGS = {
-  dark:      ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',           { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }],
+  dark:      ['https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', { attribution: '© Stadia Maps, © OpenMapTiles, © OpenStreetMap contributors', maxZoom: 20 }],
   satellite: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 19 }],
   street:    ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }],
 };

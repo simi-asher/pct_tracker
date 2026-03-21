@@ -65,7 +65,7 @@ function distanceToTrailMiles(lat, lon, nearestIdx) {
 //   on trail, 05:00–19:00 PT → hiking
 //   on trail, 19:00–05:00 PT → camping
 function getHikerStatus(lat, lon, nearestIdx) {
-  if (distanceToTrailMiles(lat, lon, nearestIdx) > 0.5) {
+  if (distanceToTrailMiles(lat, lon, nearestIdx) > 1.0) {
     return { text: 'Picking up Resupply', emoji: '🏪' };
   }
   const ptHour = parseInt(

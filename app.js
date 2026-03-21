@@ -134,15 +134,20 @@ const map = L.map('map', {
   attributionControl: true,
 }).setView([36.5, -118.5], 6);
 
-// Tile layers are created lazily — only allocated when first requested
-const TILE_CONFIGS = {
-  dark:      ['https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', { attribution: '© Stadia Maps, © OpenMapTiles, © OpenStreetMap contributors', maxZoom: 20 }],
-  satellite: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 19 }],
-  street:    ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }],
+// Tile layers are created lazily — only allocated when first requested.
+// Dark uses ESRI Dark Gray (base terrain + separate reference/labels layer).
+const TILE_FACTORIES = {
+  dark: () => {
+    const base   = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',      { attribution: '© Esri', maxZoom: 16 });
+    const labels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
+    return L.layerGroup([base, labels]);
+  },
+  satellite: () => L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',           { attribution: '© Esri', maxZoom: 19 }),
+  street:    () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }),
 };
 const TILE_LAYERS = {};
 function getTileLayer(key) {
-  if (!TILE_LAYERS[key]) TILE_LAYERS[key] = L.tileLayer(...TILE_CONFIGS[key]);
+  if (!TILE_LAYERS[key]) TILE_LAYERS[key] = TILE_FACTORIES[key]();
   return TILE_LAYERS[key];
 }
 let activeLayer = 'dark';

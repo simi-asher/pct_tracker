@@ -60,6 +60,18 @@ function findNearestTrailIndex(lat, lon) {
   return minIdx;
 }
 
+// Known PCT side quests — iconic off-trail destinations hikers commonly visit.
+// Checked before resupply towns so a summit doesn't read as "Picking up Resupply".
+// Each entry has [lat, lon, radiusMi, label].
+const PCT_SIDE_QUESTS = [
+  [33.8149, -116.6784, 5.5, 'Mt. San Jacinto'],   // summit + tram area (~mile 179)
+  [36.5785, -118.2923, 3.0, 'Mt. Whitney'],        // highest point in lower 48 (~mile 745)
+  [37.7459, -119.5332, 3.0, 'Half Dome'],          // Yosemite (~mile 942)
+  [41.0124, -121.6520, 1.5, 'Burney Falls'],       // McArthur-Burney Falls SP (~mile 1414)
+  [45.6364, -121.9219, 2.5, 'Eagle Creek'],        // Columbia River Gorge (~mile 2147)
+  [46.8523, -121.7603, 5.0, 'Mt. Rainier'],        // visible from trail, sometimes visited (~mile 2250)
+];
+
 // Known PCT resupply towns — many are ON the trail so distance-to-trail
 // alone can't detect them. Each entry has [lat, lon, radiusMi].
 const PCT_RESUPPLY_TOWNS = [
@@ -105,11 +117,17 @@ function distanceToTrailMiles(lat, lon, nearestIdx) {
 }
 
 // Determine hiker status:
-//   within a known PCT town radius → Picking up Resupply (catches on-trail towns)
-//   > 1 mile from trail            → Picking up Resupply (catches unlisted stops)
-//   on trail, 05:00–19:00 PT       → Hiking
-//   on trail, 19:00–05:00 PT       → Camping
+//   within a known PCT side quest radius → Sidequesting
+//   within a known PCT town radius       → Picking up Resupply
+//   > 1 mile from trail                  → Picking up Resupply
+//   on trail, 05:00–19:00 PT             → Hiking
+//   on trail, 19:00–05:00 PT             → Camping
 function getHikerStatus(lat, lon, nearestIdx) {
+  for (const [tLat, tLon, r] of PCT_SIDE_QUESTS) {
+    if (haversineMiles([lat, lon], [tLat, tLon]) <= r) {
+      return { text: 'Sidequesting', emoji: '⚔️' };
+    }
+  }
   for (const [tLat, tLon, r] of PCT_RESUPPLY_TOWNS) {
     if (haversineMiles([lat, lon], [tLat, tLon]) <= r) {
       return { text: 'Picking up Resupply', emoji: '📦' };

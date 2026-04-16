@@ -64,7 +64,7 @@ function findNearestTrailIndex(lat, lon) {
 // Checked before resupply towns so a summit doesn't read as "Picking up Resupply".
 // Each entry has [lat, lon, radiusMi, label].
 const PCT_SIDE_QUESTS = [
-  [33.8149, -116.6784, 5.5, 'Mt. San Jacinto'],   // summit + tram area (~mile 179)
+  [33.8149, -116.6784, 4.0, 'Mt. San Jacinto'],   // summit + tram area (~mile 179)
   [36.5785, -118.2923, 3.0, 'Mt. Whitney'],        // highest point in lower 48 (~mile 745)
   [37.7459, -119.5332, 3.0, 'Half Dome'],          // Yosemite (~mile 942)
   [41.0124, -121.6520, 1.5, 'Burney Falls'],       // McArthur-Burney Falls SP (~mile 1414)

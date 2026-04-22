@@ -26,12 +26,41 @@ const CACHE_KEY = 'pct_locations_v1';
 const CACHE_TS_KEY = 'pct_locations_ts_v1';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
 
-// State boundary miles along PCT
-const CA_END_MILE = 1702;
-const OR_END_MILE = 1977;
-
-// State trail colors
-const STATE_COLORS = { ca: '#e8943a', or: '#5a9e50', wa: '#4a7bc8' };
+// PCT sections with start miles and alternating colors within each state's family
+const PCT_SECTIONS = [
+  // California — 18 sections, cycling 3 orange shades
+  { id: 'CA-A', startMile:    0,   color: '#e8943a' },
+  { id: 'CA-B', startMile:  110,   color: '#c97825' },
+  { id: 'CA-C', startMile:  210,   color: '#f0a84f' },
+  { id: 'CA-D', startMile:  342.5, color: '#e8943a' },
+  { id: 'CA-E', startMile:  455,   color: '#c97825' },
+  { id: 'CA-F', startMile:  566.5, color: '#f0a84f' },
+  { id: 'CA-G', startMile:  653.5, color: '#e8943a' },
+  { id: 'CA-H', startMile:  768.5, color: '#c97825' },
+  { id: 'CA-I', startMile:  944,   color: '#f0a84f' },
+  { id: 'CA-J', startMile: 1018,   color: '#e8943a' },
+  { id: 'CA-K', startMile: 1093.5, color: '#c97825' },
+  { id: 'CA-L', startMile: 1158.5, color: '#f0a84f' },
+  { id: 'CA-M', startMile: 1197,   color: '#e8943a' },
+  { id: 'CA-N', startMile: 1289,   color: '#c97825' },
+  { id: 'CA-O', startMile: 1420,   color: '#f0a84f' },
+  { id: 'CA-P', startMile: 1503,   color: '#e8943a' },
+  { id: 'CA-Q', startMile: 1601.5, color: '#c97825' },
+  { id: 'CA-R', startMile: 1658,   color: '#f0a84f' },
+  // Oregon — 6 sections, cycling 2 green shades
+  { id: 'OR-B', startMile: 1720.5, color: '#5a9e50' },
+  { id: 'OR-C', startMile: 1775,   color: '#3d7a36' },
+  { id: 'OR-D', startMile: 1849.5, color: '#5a9e50' },
+  { id: 'OR-E', startMile: 1909.5, color: '#3d7a36' },
+  { id: 'OR-F', startMile: 1985.5, color: '#5a9e50' },
+  { id: 'OR-G', startMile: 2095,   color: '#3d7a36' },
+  // Washington — 5 sections, cycling 2 blue shades
+  { id: 'WA-H', startMile: 2150.5, color: '#4a7bc8' },
+  { id: 'WA-I', startMile: 2298.5, color: '#2f5da8' },
+  { id: 'WA-J', startMile: 2396.5, color: '#4a7bc8' },
+  { id: 'WA-K', startMile: 2467.5, color: '#2f5da8' },
+  { id: 'WA-L', startMile: 2594.5, color: '#4a7bc8' },
+];
 
 // PCT milestones for progress bar pins
 const PCT_MILESTONES = [
@@ -263,6 +292,20 @@ function renderMilestoneLegend() {
        <span>${m.emoji} ${m.label} (mi ${m.mile})</span>
      </div>`
   ).join('');
+}
+
+function renderSectionPins() {
+  const wrap = document.getElementById('progress-bar-wrap');
+  wrap.querySelectorAll('.section-tick').forEach(el => el.remove());
+  PCT_SECTIONS.forEach(s => {
+    const pct = (s.startMile / PCT_TOTAL_MILES) * 100;
+    const tick = document.createElement('div');
+    tick.className = 'section-tick';
+    tick.style.left = pct + '%';
+    tick.style.borderColor = s.color;
+    tick.title = s.id;
+    wrap.appendChild(tick);
+  });
 }
 
 // ============================================================
@@ -668,21 +711,23 @@ function formatTimestamp(ts) {
 
 // ============================================================
 // PCT route overlay — loads from local asset for fast rendering
-// State-colored polylines: CA=orange, OR=green, WA=blue
+// Section-colored polylines — one segment per PCT_SECTIONS entry
 // ============================================================
-function buildStatePolylines(coords, cumMiles) {
-  const ca = [], or = [], wa = [];
+function buildSectionPolylines(coords, cumMiles) {
+  const segments = PCT_SECTIONS.map(() => []);
   coords.forEach((c, i) => {
     const m = cumMiles[i];
-    const pt = [c[1], c[0]]; // [lon,lat] → [lat,lon]
-    if (m <= CA_END_MILE)      ca.push(pt);
-    else if (m <= OR_END_MILE) or.push(pt);
-    else                        wa.push(pt);
+    let sIdx = 0;
+    for (let s = 0; s < PCT_SECTIONS.length; s++) {
+      if (m >= PCT_SECTIONS[s].startMile) sIdx = s;
+    }
+    segments[sIdx].push([c[1], c[0]]); // [lon,lat] → [lat,lon]
   });
-  // Add last CA point to OR start (continuity at border)
-  if (ca.length) or.unshift(ca[ca.length - 1]);
-  if (or.length) wa.unshift(or[or.length - 1]);
-  return { ca, or, wa };
+  // Stitch borders: prepend last point of previous segment so polylines connect
+  for (let s = 1; s < segments.length; s++) {
+    if (segments[s - 1].length) segments[s].unshift(segments[s - 1][segments[s - 1].length - 1]);
+  }
+  return segments;
 }
 
 async function loadPctRoute() {
@@ -695,10 +740,11 @@ async function loadPctRoute() {
     trailCumulativeMiles = geojson.features[0].properties.cumulative_miles || null;
 
     if (trailCumulativeMiles) {
-      const segs = buildStatePolylines(trailCoords, trailCumulativeMiles);
-      L.polyline(segs.ca, { color: STATE_COLORS.ca, weight: 3, opacity: 0.8 }).addTo(trailLayer);
-      L.polyline(segs.or, { color: STATE_COLORS.or, weight: 3, opacity: 0.8 }).addTo(trailLayer);
-      L.polyline(segs.wa, { color: STATE_COLORS.wa, weight: 3, opacity: 0.8 }).addTo(trailLayer);
+      const segs = buildSectionPolylines(trailCoords, trailCumulativeMiles);
+      segs.forEach((pts, i) => {
+        if (pts.length > 1)
+          L.polyline(pts, { color: PCT_SECTIONS[i].color, weight: 3, opacity: 0.8 }).addTo(trailLayer);
+      });
     } else {
       // Fallback: single teal line if no cumulative miles data
       L.geoJSON(geojson, {
@@ -761,9 +807,10 @@ function startCountdown() {
   // Load PCT trail and elevation data in parallel (local assets, ~100ms each)
   await Promise.all([loadPctRoute(), loadElevationData()]);
 
-  // Render milestone pins and legend once after trail loads
+  // Render milestone pins, legend, and section ticks once after trail loads
   renderMilestonePins();
   renderMilestoneLegend();
+  renderSectionPins();
 
   // Render cached data immediately so the UI isn't blank
   const cachedLocations = loadCachedLocationsIfFresh();

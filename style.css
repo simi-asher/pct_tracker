@@ -207,16 +207,16 @@ header h1 {
 
 /* Dark circle: emoji always readable regardless of section color below */
 .pin-icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: rgba(6, 12, 28, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  margin-top: -26px;
+  font-size: 9px;
+  margin-top: -22px;
 }
 
 .pin-line {

@@ -65,22 +65,16 @@ const PCT_SECTIONS = [
   { id: 'WA-L', startMile: 2594.5, color: '#33aaff', darkColor: '#1f6699' },
 ];
 
-// PCT milestones for progress bar pins
+// PCT milestones for progress bar pins — 9 pins, spaced for mobile legibility
 const PCT_MILESTONES = [
   { label: 'Campo',           mile:    0, emoji: '🚀', color: '#ff8800' },
-  { label: 'Mt. Laguna',      mile:   42, emoji: '🏕️', color: '#ff8800' },
-  { label: 'San Jacinto',     mile:  179, emoji: '🏔️', color: '#cc3300' },
-  { label: 'Big Bear',        mile:  266, emoji: '🐻', color: '#ff8800' },
-  { label: 'Agua Dulce',      mile:  454, emoji: '🌵', color: '#cc3300' },
-  { label: 'Mojave',          mile:  558, emoji: '☀️', color: '#ff8800' },
+  { label: 'Agua Dulce',      mile:  454, emoji: '🌵', color: '#ff8800' },
   { label: 'Kennedy Meadows', mile:  702, emoji: '🐄', color: '#cc3300' },
-  { label: 'Mt. Whitney',     mile:  745, emoji: '⛰️', color: '#ff8800' },
-  { label: 'Yosemite',        mile:  942, emoji: '🏞️', color: '#cc3300' },
-  { label: 'Lake Tahoe',      mile: 1092, emoji: '🏖️', color: '#ff8800' },
-  { label: 'OR Border',       mile: 1702, emoji: '🌲', color: '#44cc22' },
-  { label: 'Crater Lake',     mile: 1820, emoji: '🌋', color: '#118833' },
+  { label: 'Yosemite',        mile:  942, emoji: '🏞️', color: '#ff8800' },
+  { label: 'Lake Tahoe',      mile: 1092, emoji: '🏖️', color: '#cc3300' },
+  { label: 'Burney Falls',    mile: 1414, emoji: '🌊', color: '#ff8800' },
+  { label: 'Crater Lake',     mile: 1820, emoji: '🌋', color: '#44cc22' },
   { label: 'WA Border',       mile: 1977, emoji: '🦅', color: '#33aaff' },
-  { label: 'Snoqualmie',      mile: 2393, emoji: '⛷️', color: '#0055cc' },
   { label: 'Manning Park',    mile: 2653, emoji: '🏁', color: '#33aaff' },
 ];
 

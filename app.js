@@ -26,57 +26,70 @@ const CACHE_KEY = 'pct_locations_v1';
 const CACHE_TS_KEY = 'pct_locations_ts_v1';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
 
-// PCT sections with start miles and alternating colors within each state's family
+// PCT sections with start miles, high-contrast alternating colors, and darkened
+// versions for the already-hiked overlay. Colors alternate between two clearly
+// distinct shades within each state's family so adjacent sections are obvious.
+// darkColor = ~60% brightness of color, used to shade the completed portion.
 const PCT_SECTIONS = [
-  // California — 18 sections, cycling 3 orange shades
-  { id: 'CA-A', startMile:    0,   color: '#e8943a' },
-  { id: 'CA-B', startMile:  110,   color: '#c97825' },
-  { id: 'CA-C', startMile:  210,   color: '#f0a84f' },
-  { id: 'CA-D', startMile:  342.5, color: '#e8943a' },
-  { id: 'CA-E', startMile:  455,   color: '#c97825' },
-  { id: 'CA-F', startMile:  566.5, color: '#f0a84f' },
-  { id: 'CA-G', startMile:  653.5, color: '#e8943a' },
-  { id: 'CA-H', startMile:  768.5, color: '#c97825' },
-  { id: 'CA-I', startMile:  944,   color: '#f0a84f' },
-  { id: 'CA-J', startMile: 1018,   color: '#e8943a' },
-  { id: 'CA-K', startMile: 1093.5, color: '#c97825' },
-  { id: 'CA-L', startMile: 1158.5, color: '#f0a84f' },
-  { id: 'CA-M', startMile: 1197,   color: '#e8943a' },
-  { id: 'CA-N', startMile: 1289,   color: '#c97825' },
-  { id: 'CA-O', startMile: 1420,   color: '#f0a84f' },
-  { id: 'CA-P', startMile: 1503,   color: '#e8943a' },
-  { id: 'CA-Q', startMile: 1601.5, color: '#c97825' },
-  { id: 'CA-R', startMile: 1658,   color: '#f0a84f' },
-  // Oregon — 6 sections, cycling 2 green shades
-  { id: 'OR-B', startMile: 1720.5, color: '#5a9e50' },
-  { id: 'OR-C', startMile: 1775,   color: '#3d7a36' },
-  { id: 'OR-D', startMile: 1849.5, color: '#5a9e50' },
-  { id: 'OR-E', startMile: 1909.5, color: '#3d7a36' },
-  { id: 'OR-F', startMile: 1985.5, color: '#5a9e50' },
-  { id: 'OR-G', startMile: 2095,   color: '#3d7a36' },
-  // Washington — 5 sections, cycling 2 blue shades
-  { id: 'WA-H', startMile: 2150.5, color: '#4a7bc8' },
-  { id: 'WA-I', startMile: 2298.5, color: '#2f5da8' },
-  { id: 'WA-J', startMile: 2396.5, color: '#4a7bc8' },
-  { id: 'WA-K', startMile: 2467.5, color: '#2f5da8' },
-  { id: 'WA-L', startMile: 2594.5, color: '#4a7bc8' },
+  // California — vivid amber ↔ deep red-orange
+  { id: 'CA-A', startMile:    0,   color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-B', startMile:  110,   color: '#cc3300', darkColor: '#7a1f00' },
+  { id: 'CA-C', startMile:  210,   color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-D', startMile:  342.5, color: '#cc3300', darkColor: '#7a1f00' },
+  { id: 'CA-E', startMile:  455,   color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-F', startMile:  566.5, color: '#cc3300', darkColor: '#7a1f00' },
+  { id: 'CA-G', startMile:  653.5, color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-H', startMile:  768.5, color: '#cc3300', darkColor: '#7a1f00' },
+  { id: 'CA-I', startMile:  944,   color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-J', startMile: 1018,   color: '#cc3300', darkColor: '#7a1f00' },
+  { id: 'CA-K', startMile: 1093.5, color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-L', startMile: 1158.5, color: '#cc3300', darkColor: '#7a1f00' },
+  { id: 'CA-M', startMile: 1197,   color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-N', startMile: 1289,   color: '#cc3300', darkColor: '#7a1f00' },
+  { id: 'CA-O', startMile: 1420,   color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-P', startMile: 1503,   color: '#cc3300', darkColor: '#7a1f00' },
+  { id: 'CA-Q', startMile: 1601.5, color: '#ff8800', darkColor: '#995200' },
+  { id: 'CA-R', startMile: 1658,   color: '#cc3300', darkColor: '#7a1f00' },
+  // Oregon — vivid lime ↔ forest green
+  { id: 'OR-B', startMile: 1720.5, color: '#44cc22', darkColor: '#297a14' },
+  { id: 'OR-C', startMile: 1775,   color: '#118833', darkColor: '#0a521f' },
+  { id: 'OR-D', startMile: 1849.5, color: '#44cc22', darkColor: '#297a14' },
+  { id: 'OR-E', startMile: 1909.5, color: '#118833', darkColor: '#0a521f' },
+  { id: 'OR-F', startMile: 1985.5, color: '#44cc22', darkColor: '#297a14' },
+  { id: 'OR-G', startMile: 2095,   color: '#118833', darkColor: '#0a521f' },
+  // Washington — sky blue ↔ royal blue
+  { id: 'WA-H', startMile: 2150.5, color: '#33aaff', darkColor: '#1f6699' },
+  { id: 'WA-I', startMile: 2298.5, color: '#0055cc', darkColor: '#00337a' },
+  { id: 'WA-J', startMile: 2396.5, color: '#33aaff', darkColor: '#1f6699' },
+  { id: 'WA-K', startMile: 2467.5, color: '#0055cc', darkColor: '#00337a' },
+  { id: 'WA-L', startMile: 2594.5, color: '#33aaff', darkColor: '#1f6699' },
 ];
 
 // PCT milestones for progress bar pins
 const PCT_MILESTONES = [
-  { label: 'Campo',        mile: 0,    emoji: '🚀', color: '#4a90d9' },
-  { label: 'Yosemite',     mile: 942,  emoji: '🏔️', color: '#4a90d9' },
-  { label: 'OR Border',    mile: 1702, emoji: '🌲', color: '#5a9e50' },
-  { label: 'Crater Lake',  mile: 1820, emoji: '🌋', color: '#5a9e50' },
-  { label: 'WA Border',    mile: 1977, emoji: '🦅', color: '#4a7bc8' },
-  { label: 'Snoqualmie',   mile: 2393, emoji: '⛷️', color: '#4a7bc8' },
-  { label: 'Manning Park', mile: 2653, emoji: '🏁', color: '#4a7bc8' },
+  { label: 'Campo',           mile:    0, emoji: '🚀', color: '#ff8800' },
+  { label: 'Mt. Laguna',      mile:   42, emoji: '🏕️', color: '#ff8800' },
+  { label: 'San Jacinto',     mile:  179, emoji: '🏔️', color: '#cc3300' },
+  { label: 'Big Bear',        mile:  266, emoji: '🐻', color: '#ff8800' },
+  { label: 'Agua Dulce',      mile:  454, emoji: '🌵', color: '#cc3300' },
+  { label: 'Mojave',          mile:  558, emoji: '☀️', color: '#ff8800' },
+  { label: 'Kennedy Meadows', mile:  702, emoji: '🐄', color: '#cc3300' },
+  { label: 'Mt. Whitney',     mile:  745, emoji: '⛰️', color: '#ff8800' },
+  { label: 'Yosemite',        mile:  942, emoji: '🏞️', color: '#cc3300' },
+  { label: 'Lake Tahoe',      mile: 1092, emoji: '🏖️', color: '#ff8800' },
+  { label: 'OR Border',       mile: 1702, emoji: '🌲', color: '#44cc22' },
+  { label: 'Crater Lake',     mile: 1820, emoji: '🌋', color: '#118833' },
+  { label: 'WA Border',       mile: 1977, emoji: '🦅', color: '#33aaff' },
+  { label: 'Snoqualmie',      mile: 2393, emoji: '⛷️', color: '#0055cc' },
+  { label: 'Manning Park',    mile: 2653, emoji: '🏁', color: '#33aaff' },
 ];
 
 // Loaded PCT trail coordinates ([lon, lat] GeoJSON order) — populated by loadPctRoute()
 let trailCoords = null;
 // Cumulative trail miles for each coord index — populated by loadPctRoute()
 let trailCumulativeMiles = null;
+// First trail coord index for each PCT_SECTIONS entry — populated by loadPctRoute()
+let trailSectionStartIndices = null;
 
 // Find the index of the trail point closest to [lat, lon]
 function findNearestTrailIndex(lat, lon) {
@@ -639,21 +652,24 @@ function renderMap(stats) {
   const { sorted, latest } = stats;
   const coords = sorted.map(l => [l.lat, l.lon]);
 
-  // Draw "hiked so far" segment along actual PCT trail coordinates.
-  // Slice trail from start to the point nearest the hiker's current location.
-  if (trailCoords) {
+  // Draw hiked trail in per-section darkened colors to show progress.
+  if (trailCoords && trailSectionStartIndices) {
     const nearestIdx = findNearestTrailIndex(latest.lat, latest.lon);
-    // trailCoords is [lon, lat]; Leaflet needs [lat, lon].
-    // Always prepend PCT_SOUTH_TERMINUS (mile 0) so we have at least 2 points
-    // even when the hiker is at the very start of the trail (nearestIdx = 0).
-    const trailSegment = trailCoords.slice(0, nearestIdx + 1).map(c => [c[1], c[0]]);
-    const hikedLatLons = [PCT_SOUTH_TERMINUS, ...trailSegment];
-    L.polyline(hikedLatLons, {
-      color: '#e94560',
-      weight: 3,
-      opacity: 0.85,
-      dashArray: '6, 4',
-    }).addTo(historyLayer);
+    PCT_SECTIONS.forEach((section, i) => {
+      const secStart = trailSectionStartIndices[i];
+      if (secStart > nearestIdx) return; // section not yet reached
+      const secEnd = i < PCT_SECTIONS.length - 1
+        ? Math.min(trailSectionStartIndices[i + 1] - 1, nearestIdx)
+        : nearestIdx;
+      const pts = trailCoords.slice(secStart, secEnd + 1).map(c => [c[1], c[0]]);
+      if (pts.length < 2) return;
+      L.polyline(pts, {
+        color: section.darkColor,
+        weight: 3,
+        opacity: 0.9,
+        dashArray: '6, 4',
+      }).addTo(historyLayer);
+    });
   } else {
     // Fallback before trail loads: straight line from Campo
     L.polyline([PCT_SOUTH_TERMINUS, ...coords], {
@@ -663,20 +679,6 @@ function renderMap(stats) {
       dashArray: '6, 4',
     }).addTo(historyLayer);
   }
-
-  // Historical check-in dots (all except the latest)
-  sorted.slice(0, -1).forEach(loc => {
-    L.circleMarker([loc.lat, loc.lon], {
-      radius: 5,
-      fillColor: '#e94560',
-      color: '#fff',
-      weight: 1.5,
-      opacity: 0.8,
-      fillOpacity: 0.6,
-    })
-      .bindPopup(`<span class="popup-time">${formatTimestamp(loc.timestamp)}</span>`)
-      .addTo(historyLayer);
-  });
 
   const pulseIcon = L.divIcon({
     className: '',
@@ -740,6 +742,18 @@ async function loadPctRoute() {
     trailCumulativeMiles = geojson.features[0].properties.cumulative_miles || null;
 
     if (trailCumulativeMiles) {
+      // Precompute first trail index per section for fast hiked-segment rendering
+      trailSectionStartIndices = PCT_SECTIONS.map((s, i) => {
+        if (i === 0) return 0;
+        let lo = 0, hi = trailCumulativeMiles.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (trailCumulativeMiles[mid] < s.startMile) lo = mid + 1;
+          else hi = mid;
+        }
+        return lo;
+      });
+
       const segs = buildSectionPolylines(trailCoords, trailCumulativeMiles);
       segs.forEach((pts, i) => {
         if (pts.length > 1)

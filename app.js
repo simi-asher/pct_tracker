@@ -292,7 +292,7 @@ function renderMilestonePins() {
     pin.className = 'milestone-pin';
     pin.style.left = pct + '%';
     pin.title = `${m.label} — Mile ${m.mile}`;
-    pin.innerHTML = `<div class="pin-icon" style="background:${m.color}"><span>${m.emoji}</span></div><div class="pin-line"></div>`;
+    pin.innerHTML = `<div class="pin-icon"><span>${m.emoji}</span></div><div class="pin-line"></div>`;
     wrap.appendChild(pin);
   });
 }
@@ -302,22 +302,30 @@ function renderMilestoneLegend() {
   el.innerHTML = PCT_MILESTONES.map(m =>
     `<div class="milestone-legend-item">
        <div class="milestone-legend-dot" style="background:${m.color}"></div>
-       <span>${m.emoji} ${m.label} (mi ${m.mile})</span>
+       <span>${m.emoji} ${m.label}</span>
      </div>`
   ).join('');
 }
 
 function renderSectionPins() {
   const wrap = document.getElementById('progress-bar-wrap');
-  wrap.querySelectorAll('.section-tick').forEach(el => el.remove());
+  wrap.querySelectorAll('.section-tick, .section-label').forEach(el => el.remove());
   PCT_SECTIONS.forEach(s => {
     const pct = (s.startMile / PCT_TOTAL_MILES) * 100;
+
     const tick = document.createElement('div');
     tick.className = 'section-tick';
     tick.style.left = pct + '%';
     tick.style.borderColor = s.color;
     tick.title = s.id;
     wrap.appendChild(tick);
+
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.style.left = pct + '%';
+    label.style.color = s.color;
+    label.textContent = s.id.split('-')[1]; // "A", "B", "C" …
+    wrap.appendChild(label);
   });
 }
 

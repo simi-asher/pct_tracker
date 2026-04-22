@@ -304,16 +304,20 @@ function renderMilestoneLegend() {
 function renderSectionPins() {
   const wrap = document.getElementById('progress-bar-wrap');
   wrap.querySelectorAll('.section-tick, .section-label').forEach(el => el.remove());
+
   PCT_SECTIONS.forEach(s => {
     const pct = (s.startMile / PCT_TOTAL_MILES) * 100;
 
-    const tick = document.createElement('div');
-    tick.className = 'section-tick';
-    tick.style.left = pct + '%';
-    tick.style.borderColor = s.color;
-    tick.title = s.id;
-    wrap.appendChild(tick);
+    // Neutral white tick — keeps completed (bright) vs remaining (dark) contrast clear
+    if (s.startMile > 0) {
+      const tick = document.createElement('div');
+      tick.className = 'section-tick';
+      tick.style.left = pct + '%';
+      tick.title = s.id;
+      wrap.appendChild(tick);
+    }
 
+    // Section letter below bar
     const label = document.createElement('div');
     label.className = 'section-label';
     label.style.left = pct + '%';
